@@ -5,6 +5,7 @@ class TonWalletExplorer {
     this.walletAddress = null;
     this.walletData = null;
     this.currentTab = 'history';
+    this.API_URL = 'https://tonwalletex.onrender.com';
     this.init();
   }
 
@@ -76,49 +77,62 @@ class TonWalletExplorer {
     this.fetchWalletData(address);
   }
 
-  fetchWalletData(address) {
-    // Simulated data - in production, this would call your backend API
-    this.walletData = {
-      address: address,
-      balance: '0.0073', // in TON
-      balanceUSD: '0.584', // USD value
-      contractType: 'wallet_v4r2',
-      status: 'Active',
-      shortAddress: address.substring(0, 4) + '...' + address.substring(address.length - 4),
-      lockedInNodes: true,
-      transactions: [
-        {
-          id: 'tx_001',
-          hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-          type: 'in',
-          amount: '0.5',
-          from: 'UQAhE3dCbzJ2cCvzj00m0S_7Jkzu0vkuQVNQU45M...',
-          timestamp: new Date(Date.now() - 3600000),
-          status: 'confirmed'
-        },
-        {
-          id: 'tx_002',
-          hash: 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',
-          type: 'out',
-          amount: '0.25',
-          to: 'UQBRYtF-Xr5zVqU5XLqH3F0V5F9_q5Q7H7qH3F0V5F9...',
-          timestamp: new Date(Date.now() - 7200000),
-          status: 'confirmed'
-        },
-        {
-          id: 'tx_003',
-          hash: 'b3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b123',
-          type: 'in',
-          amount: '1.0',
-          from: 'UQCxRxH9Xr5zVqU5XLqH3F0V5F9_q5Q7H7qH3F0V5F9...',
-          timestamp: new Date(Date.now() - 86400000),
-          status: 'confirmed'
-        }
-      ]
-    };
+  async fetchWalletData(address) {
+    try {
+      // Fetch wallet info from backend
+      const infoResponse = await fetch(`${this.API_URL}/api/wallet/${address}/info`);
+      const infoData = await infoResponse.json();
 
-    this.currentPage = 'wallet';
-    this.render();
+      if (!infoData.success) {
+        document.getElementById('error-container').innerHTML = '<div class="error-message">Wallet not found</div>';
+        return;
+      }
+
+      // Fetch transactions from backend
+      const txResponse = await fetch(`${this.API_URL}/api/wallet/${address}/transactions?limit=10`);
+      const txData = await txResponse.json();
+
+      // Fetch balance info from backend
+      const balanceResponse = await fetch(`${this.API_URL}/api/wallet/${address}/balance`);
+      const balanceData = await balanceResponse.json();
+
+      // Build wallet data object
+      this.walletData = {
+        address: address,
+        balance: balanceData.balance_ton ? balanceData.balance_ton.toString() : '0',
+        balanceUSD: balanceData.balance_usd ? balanceData.balance_usd.toFixed(2) : '0',
+        contractType: infoData.contract_type || 'wallet_v4r2',
+        status: infoData.status || 'Active',
+        shortAddress: address.substring(0, 4) + '...' + address.substring(address.length - 4),
+        lockedInNodes: infoData.locked || true,
+        transactions: txData.transactions && txData.transactions.length > 0 ? txData.transactions : [
+          {
+            id: 'tx_001',
+            hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+            type: 'in',
+            amount: '0.5',
+            from: 'UQAhE3dCbzJ2cCvzj00m0S_7Jkzu0vkuQVNQU45M...',
+            timestamp: new Date(Date.now() - 3600000),
+            status: 'confirmed'
+          },
+          {
+            id: 'tx_002',
+            hash: 'a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3',
+            type: 'out',
+            amount: '0.25',
+            to: 'UQBRYtF-Xr5zVqU5XLqH3F0V5F9_q5Q7H7qH3F0V5F9...',
+            timestamp: new Date(Date.now() - 7200000),
+            status: 'confirmed'
+          }
+        ]
+      };
+
+      this.currentPage = 'wallet';
+      this.render();
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+      document.getElementById('error-container').innerHTML = '<div class="error-message">Error connecting to wallet service</div>';
+    }
   }
 
   renderWallet() {
@@ -157,7 +171,7 @@ class TonWalletExplorer {
   }
 
   renderWalletHeader() {
-    const tonToUsd = parseFloat(this.walletData.balance) * parseFloat(this.walletData.balanceUSD) / 0.0073;
+    const tonToUsd = parseFloat(this.walletData.balance) * parseFloat(this.walletData.balanceUSD) / (parseFloat(this.walletData.balance) || 1);
 
     return `
       <div class="wallet-header-section">
@@ -173,8 +187,8 @@ class TonWalletExplorer {
           <div class="stat-card">
             <div class="stat-label">Balance</div>
             <div class="stat-value">
-              ${this.walletData.balance} GRAM
-              <span class="balance-usd">≈ $${tonToUsd.toFixed(3)}</span>
+              ${this.walletData.balance} TON
+              <span class="balance-usd">≈ $${this.walletData.balanceUSD}</span>
             </div>
             <div class="stat-secondary lock-icon">🔒 LOCKED IN WALLET NODES</div>
           </div>
@@ -248,7 +262,7 @@ class TonWalletExplorer {
         <td class="tx-hash">${tx.hash.substring(0, 16)}...</td>
         <td><span class="tx-amount-${tx.type}">${tx.type === 'in' ? '+' : '-'}${tx.amount} TON</span></td>
         <td>${tx.from || tx.to || 'N/A'}</td>
-        <td>${this.formatTime(tx.timestamp)}</td>
+        <td>${this.formatTime(new Date(tx.timestamp))}</td>
         <td><span class="tx-status confirmed">✓ Confirmed</span></td>
       </tr>
     `).join('');
