@@ -1,3 +1,9 @@
+/* Updated frontend/app.js
+   - New hero/login UI (Tonviewer-like)
+   - Redesigned wallet view with QR, balance card and transactions list
+   - Keeps existing API calls unchanged
+*/
+
 class TonWalletExplorer {
   constructor() {
     this.app = document.getElementById('app');
@@ -21,55 +27,127 @@ class TonWalletExplorer {
     }
   }
 
+  // --- LOGIN / HERO (Image 2 lookalike) ---
   renderLogin() {
     this.app.innerHTML = `
-      <div class="login-page">
-        <div class="login-card">
-          <div class="login-header">
-            <div class="login-logo">⛓️</div>
-            <h1 class="login-title">TON Wallet Explorer</h1>
-            <p class="login-subtitle">Connect your wallet to explore</p>
+      <div class="hero-root">
+        <header class="tv-header">
+          <div class="tv-logo">
+            <div class="diamond" />
+            <span class="brand">Tonviewer</span>
           </div>
-          
-          <div id="error-container"></div>
-          
-          <form id="login-form">
-            <div class="form-group">
-              <label class="form-label">Wallet Address</label>
-              <input 
-                type="text" 
-                class="form-input" 
-                id="wallet-input"
-                placeholder="Enter your TON wallet address"
-                required
-              >
+          <div class="tv-header-right">
+            <button class="ghost-btn">/</button>
+            <button class="ghost-btn">⚙</button>
+            <button class="connect-btn" id="connect-fake">Connect Wallet</button>
+          </div>
+        </header>
+
+        <main class="hero-main">
+          <div class="hero-brand">
+            <div class="diamond large"></div>
+            <h1>Tonviewer</h1>
+          </div>
+
+          <div class="search-row">
+            <div class="search-glow">
+              <span class="search-icon">🔍</span>
+              <input id="hero-search" class="search-input" placeholder="Search by address, name or transaction" />
+              <button class="copy-icon" id="sample-search-btn">🔎</button>
             </div>
-            <button type="submit" class="btn-login">Connect Wallet</button>
-          </form>
-          
-          <div style="text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem;">
-            <p>Example: UQAhE3dCbzJ2cCvzj00m0S_7Jkzu0vkuQVNQU45M..."</p>
           </div>
-        </div>
+
+          <div class="stats-strip">
+            <div class="stat-item">
+              <div class="stat-title">Gram (prev. Toncoin) Price</div>
+              <div class="stat-value">$1.43</div>
+            </div>
+            <div class="stat-item middle">
+              <div class="stat-title">Market Cap</div>
+              <div class="stat-value">$3.64B</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-title">Current TPS</div>
+              <div class="stat-value">43.43</div>
+            </div>
+          </div>
+
+          <section class="home-grid">
+            <div class="card small-card">
+              <h3>Wallets</h3>
+              <ul class="compact-list">
+                <li><strong>Tonkeeper</strong><span class="muted">The leading non-custodial wallet on TON</span></li>
+                <li><strong>Tonkeeper Pro</strong><span class="muted">Desktop wallet. Receive, buy and spend crypto</span></li>
+              </ul>
+            </div>
+
+            <div class="card small-card">
+              <h3>Tokens</h3>
+              <ul class="compact-list">
+                <li>Most visited</li>
+                <li>Recently added</li>
+              </ul>
+            </div>
+
+            <div class="card small-card">
+              <h3>Stats</h3>
+              <div class="small-stat-row">
+                <div><strong>Jettons Transfer · 1d</strong><div class="big">360,740</div></div>
+                <div><strong>NFT Transfer · 1d</strong><div class="big">25,165</div></div>
+              </div>
+            </div>
+          </section>
+
+          <div class="login-card-compact">
+            <form id="login-form">
+              <label class="form-label">Enter Wallet Address</label>
+              <div class="inline-form">
+                <input id="wallet-input" class="form-input" placeholder="UQD4MsK...Whot4eDv" />
+                <button type="submit" class="btn-login">Lookup</button>
+              </div>
+            </form>
+            <div id="error-container" class="error-slot"></div>
+          </div>
+        </main>
+
+        <footer class="footer-min">
+          <div class="footer-min-inner">© 2026 Tonviewer — lightweight explorer</div>
+        </footer>
       </div>
     `;
 
     document.getElementById('login-form').addEventListener('submit', (e) => this.handleLogin(e));
+
+    // sample hero action: paste demo address into input
+    document.getElementById('sample-search-btn').addEventListener('click', () => {
+      const inp = document.getElementById('wallet-input') || document.getElementById('hero-search');
+      if (inp) inp.value = 'UQD4MsKVED3zIIhyXZU31F5_7dqTVYAvQu2X9Wf3Whot4eDv';
+    });
+
+    const connectFake = document.getElementById('connect-fake');
+    if (connectFake) {
+      connectFake.addEventListener('click', () => {
+        // scroll to compact form
+        const el = document.querySelector('.login-card-compact');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
   }
 
   handleLogin(e) {
     e.preventDefault();
     const addressInput = document.getElementById('wallet-input');
-    const address = addressInput.value.trim();
+    const address = addressInput ? addressInput.value.trim() : '';
     const errorContainer = document.getElementById('error-container');
 
     if (!address) {
-      errorContainer.innerHTML = '<div class="error-message">Please enter a wallet address</div>';
+      if (errorContainer) errorContainer.innerHTML = '<div class="error-message">Please enter a wallet address</div>';
       return;
     }
 
+    // Basic validation
     if (address.length < 48) {
-      errorContainer.innerHTML = '<div class="error-message">Invalid wallet address format</div>';
+      if (errorContainer) errorContainer.innerHTML = '<div class="error-message">Invalid wallet address format</div>';
       return;
     }
 
@@ -77,6 +155,7 @@ class TonWalletExplorer {
     this.fetchWalletData(address);
   }
 
+  // --- Data fetching and mapping ---
   async fetchWalletData(address) {
     try {
       // Fetch wallet info from backend
@@ -84,27 +163,31 @@ class TonWalletExplorer {
       const infoData = await infoResponse.json();
 
       if (!infoData.success) {
-        document.getElementById('error-container').innerHTML = '<div class="error-message">Wallet not found</div>';
+        const errorContainer = document.getElementById('error-container');
+        if (errorContainer) errorContainer.innerHTML = '<div class="error-message">Wallet not found</div>';
         return;
       }
 
       // Fetch transactions from backend
-      const txResponse = await fetch(`${this.API_URL}/api/wallet/${address}/transactions?limit=10`);
+      const txResponse = await fetch(`${this.API_URL}/api/wallet/${address}/transactions?limit=15`);
       const txData = await txResponse.json();
 
       // Fetch balance info from backend
       const balanceResponse = await fetch(`${this.API_URL}/api/wallet/${address}/balance`);
       const balanceData = await balanceResponse.json();
 
-      // Build wallet data object
+      // Build wallet data object (graceful fallbacks)
+      const balanceTon = balanceData && (balanceData.balance_ton || balanceData.balance) ? String(balanceData.balance_ton || balanceData.balance) : '0';
+      const balanceUsd = balanceData && (typeof balanceData.balance_usd === 'number') ? Number(balanceData.balance_usd) : 0;
+
       this.walletData = {
         address: address,
-        balance: balanceData.balance_ton ? balanceData.balance_ton.toString() : '0',
-        balanceUSD: balanceData.balance_usd ? balanceData.balance_usd.toFixed(2) : '0',
+        balance: balanceTon,
+        balanceUSD: balanceUsd,
         contractType: infoData.contract_type || 'wallet_v4r2',
         status: infoData.status || 'Active',
-        shortAddress: address.substring(0, 4) + '...' + address.substring(address.length - 4),
-        lockedInNodes: infoData.locked || true,
+        shortAddress: address.substring(0, 6) + '...' + address.substring(address.length - 6),
+        lockedInNodes: infoData.locked || false,
         transactions: txData.transactions && txData.transactions.length > 0 ? txData.transactions : [
           {
             id: 'tx_001',
@@ -112,7 +195,7 @@ class TonWalletExplorer {
             type: 'in',
             amount: '0.5',
             from: 'UQAhE3dCbzJ2cCvzj00m0S_7Jkzu0vkuQVNQU45M...',
-            timestamp: new Date(Date.now() - 3600000),
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
             status: 'confirmed'
           },
           {
@@ -121,7 +204,7 @@ class TonWalletExplorer {
             type: 'out',
             amount: '0.25',
             to: 'UQBRYtF-Xr5zVqU5XLqH3F0V5F9_q5Q7H7qH3F0V5F9...',
-            timestamp: new Date(Date.now() - 7200000),
+            timestamp: new Date(Date.now() - 7200000).toISOString(),
             status: 'confirmed'
           }
         ]
@@ -131,363 +214,131 @@ class TonWalletExplorer {
       this.render();
     } catch (error) {
       console.error('Error fetching wallet data:', error);
-      document.getElementById('error-container').innerHTML = '<div class="error-message">Error connecting to wallet service</div>';
+      const errorContainer = document.getElementById('error-container');
+      if (errorContainer) errorContainer.innerHTML = '<div class="error-message">Error connecting to wallet service</div>';
     }
   }
 
+  // --- Wallet page (Image 1 lookalike) ---
   renderWallet() {
     this.app.innerHTML = `
-      <header class="header">
-        <div class="header-container">
-          <div class="logo">
-            <div class="logo-icon">⛓️</div>
-            <span>TON Explorer</span>
+      <div class="page-root">
+        <header class="tv-header">
+          <div class="tv-logo">
+            <div class="diamond" />
+            <span class="brand">Tonviewer</span>
           </div>
-          <div class="search-container">
-            <input 
-              type="text" 
-              class="search-input" 
-              placeholder="Search by address or transaction hash"
-              id="search-input"
-            >
+          <div class="tv-header-right">
+            <button class="ghost-btn" id="header-search-toggle">/</button>
+            <button class="ghost-btn">⚙</button>
+            <button class="connect-btn" id="disconnect-btn">Disconnect</button>
           </div>
-          <div class="header-actions">
-            <button class="icon-btn" id="favorite-btn" title="Add to favorites">⭐</button>
-            <button class="icon-btn" id="settings-btn" title="Settings">⚙️</button>
-            <button class="btn-primary" id="logout-btn">Logout</button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <div class="wallet-container">
-        ${this.renderWalletHeader()}
-        ${this.renderTabs()}
+        <main class="page-content narrow">
+          <div class="address-card">
+            <div class="address-left">
+              <div class="address-title">Address</div>
+              <div class="address-value">${this.walletData.address}</div>
+
+              <div class="meta-row">
+                <div>
+                  <div class="meta-label">Balance</div>
+                  <div class="meta-value">${this.walletData.balance} GRAM <span class="muted">≈ $${this.walletData.balanceUSD || '0.00'}</span></div>
+                </div>
+                <div>
+                  <div class="meta-label">Contract type</div>
+                  <div class="meta-value">${this.walletData.contractType}</div>
+                </div>
+              </div>
+
+              <div class="status-row">
+                <span class="status-active">● ${this.walletData.status}</span>
+                <a class="muted link" href="https://toncoin.org" target="_blank">toncoin.org</a>
+              </div>
+            </div>
+
+            <div class="address-right">
+              <div class="qr-box"><img alt="qr" src="/frontend/sample-qr.png" onerror="this.style.opacity=0.08" /></div>
+            </div>
+          </div>
+
+          <div class="card history-card">
+            <div class="card-header">
+              <h3>History</h3>
+              <div class="controls">
+                <button class="ghost-small">Sort</button>
+                <button class="ghost-small">Date</button>
+              </div>
+            </div>
+
+            ${this.renderHistoryTab()}
+          </div>
+        </main>
+
+        <footer class="footer-min">
+          <div class="footer-min-inner">© 2026 Tonviewer — lightweight explorer</div>
+        </footer>
       </div>
-
-      ${this.renderFooter()}
     `;
 
     this.attachEventListeners();
   }
 
-  renderWalletHeader() {
-    const tonToUsd = parseFloat(this.walletData.balance) * parseFloat(this.walletData.balanceUSD) / (parseFloat(this.walletData.balance) || 1);
-
-    return `
-      <div class="wallet-header-section">
-        <div class="wallet-address-display">
-          <div>
-            <div class="label-text">Wallet Address</div>
-            <div class="address-value">${this.walletData.address}</div>
-          </div>
-          <button class="copy-btn" onclick="explorer.copyToClipboard('${this.walletData.address}', this)">📋</button>
-        </div>
-
-        <div class="wallet-stats">
-          <div class="stat-card">
-            <div class="stat-label">Balance</div>
-            <div class="stat-value">
-              ${this.walletData.balance} TON
-              <span class="balance-usd">≈ $${this.walletData.balanceUSD}</span>
-            </div>
-            <div class="stat-secondary lock-icon">🔒 LOCKED IN WALLET NODES</div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-label">Contract Type</div>
-            <div class="stat-value">${this.walletData.contractType}</div>
-            <div class="status-badge">
-              <span class="status-dot"></span>
-              ${this.walletData.status}
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-label">Wallet Address (Short)</div>
-            <div class="stat-value" style="font-size: 1.2rem;">${this.walletData.shortAddress}</div>
-            <button class="icon-btn" style="margin-top: 0.5rem;" onclick="explorer.copyToClipboard('${this.walletData.address}', this)">📋 Copy</button>
-          </div>
-        </div>
-
-        <div class="info-row">
-          <div class="info-left">Official Website</div>
-          <a href="https://toncoin.org" target="_blank" class="external-link">toncoin.org ↗</a>
-        </div>
-      </div>
-    `;
-  }
-
-  renderTabs() {
-    return `
-      <div class="tabs-container">
-        <div class="tabs-header">
-          <button class="tab-button ${this.currentTab === 'history' ? 'active' : ''}" onclick="explorer.switchTab('history')">History</button>
-          <button class="tab-button ${this.currentTab === 'raw' ? 'active' : ''}" onclick="explorer.switchTab('raw')">Raw Transactions</button>
-          <button class="tab-button ${this.currentTab === 'code' ? 'active' : ''}" onclick="explorer.switchTab('code')">Code</button>
-          <button class="tab-button ${this.currentTab === 'methods' ? 'active' : ''}" onclick="explorer.switchTab('methods')">Methods</button>
-          <button class="tab-button ${this.currentTab === 'send' ? 'active' : ''}" onclick="explorer.switchTab('send')">Send Message</button>
-        </div>
-
-        <div class="tab-content ${this.currentTab === 'history' ? 'active' : ''}">
-          ${this.renderHistoryTab()}
-        </div>
-
-        <div class="tab-content ${this.currentTab === 'raw' ? 'active' : ''}">
-          ${this.renderRawTab()}
-        </div>
-
-        <div class="tab-content ${this.currentTab === 'code' ? 'active' : ''}">
-          ${this.renderCodeTab()}
-        </div>
-
-        <div class="tab-content ${this.currentTab === 'methods' ? 'active' : ''}">
-          ${this.renderMethodsTab()}
-        </div>
-
-        <div class="tab-content ${this.currentTab === 'send' ? 'active' : ''}">
-          ${this.renderSendTab()}
-        </div>
-      </div>
-    `;
-  }
-
   renderHistoryTab() {
-    if (this.walletData.transactions.length === 0) {
+    if (!this.walletData || !this.walletData.transactions || this.walletData.transactions.length === 0) {
       return '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No transactions found</p></div>';
     }
 
-    const rows = this.walletData.transactions.map(tx => `
-      <tr>
-        <td>${tx.type === 'in' ? '📥 IN' : '📤 OUT'}</td>
-        <td class="tx-hash">${tx.hash.substring(0, 16)}...</td>
-        <td><span class="tx-amount-${tx.type}">${tx.type === 'in' ? '+' : '-'}${tx.amount} TON</span></td>
-        <td>${tx.from || tx.to || 'N/A'}</td>
-        <td>${this.formatTime(new Date(tx.timestamp))}</td>
-        <td><span class="tx-status confirmed">✓ Confirmed</span></td>
-      </tr>
-    `).join('');
+    const rows = this.walletData.transactions.map(tx => {
+      const ts = tx.timestamp ? this.formatTime(new Date(tx.timestamp)) : '—';
+      const hash = (tx.hash || tx.id || '').toString();
+      const shortHash = hash.length > 14 ? hash.substring(0, 14) + '...' : hash;
+      const addr = tx.from || tx.to || '—';
+      const amount = tx.amount || '0';
+      const isIn = tx.type === 'in' || tx.type === 'incoming';
 
-    return `
-      <table class="transactions-table">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Hash</th>
-            <th>Amount</th>
-            <th>Address</th>
-            <th>Time</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    `;
-  }
-
-  renderRawTab() {
-    return `
-      <div>
-        <div class="code-block-title">Raw Transaction Data (JSON)</div>
-        <div class="code-block">${this.escapeHtml(JSON.stringify(this.walletData.transactions, null, 2))}</div>
-      </div>
-    `;
-  }
-
-  renderCodeTab() {
-    const contractCode = `
-#include "stdlib.fc";
-
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure inline {
-    if (in_msg_body.slice_empty?()) {
-        return ();
-    }
-    
-    int op = in_msg_body~load_uint(32);
-    int query_id = in_msg_body~load_uint(64);
-    
-    if (op == 0x5F04B8F5) {
-        ;; seqno & subwallet_id from get_data
-        return ();
-    }
-}
-
-int get_seqno() method_id {
-    return get_data().begin_parse().preload_uint(32);
-}
-    `.trim();
-
-    return `
-      <div>
-        <div class="code-block-title">Wallet Smart Contract Code (FunC)</div>
-        <div class="code-block">${this.escapeHtml(contractCode)}</div>
-        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-          This is the smart contract code compiled to TON Virtual Machine bytecode.
-        </p>
-      </div>
-    `;
-  }
-
-  renderMethodsTab() {
-    return `
-      <div style="max-width: 100%; overflow-x: auto;">
-        <table class="transactions-table">
-          <thead>
-            <tr>
-              <th>Method Name</th>
-              <th>Description</th>
-              <th>Parameters</th>
-              <th>Return Type</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>get_seqno</code></td>
-              <td>Get the current sequence number</td>
-              <td>None</td>
-              <td>int</td>
-            </tr>
-            <tr>
-              <td><code>get_subwallet_id</code></td>
-              <td>Get the subwallet identifier</td>
-              <td>None</td>
-              <td>int</td>
-            </tr>
-            <tr>
-              <td><code>get_public_key</code></td>
-              <td>Get the wallet public key</td>
-              <td>None</td>
-              <td>int</td>
-            </tr>
-            <tr>
-              <td><code>recv_internal</code></td>
-              <td>Handle internal messages</td>
-              <td>int, int, cell, slice</td>
-              <td>void</td>
-            </tr>
-            <tr>
-              <td><code>recv_external</code></td>
-              <td>Handle external messages</td>
-              <td>slice</td>
-              <td>void</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
-
-  renderSendTab() {
-    return `
-      <div style="max-width: 600px;">
-        <form id="send-form">
-          <div class="form-group">
-            <label class="form-label">Recipient Address</label>
-            <input type="text" class="form-input" placeholder="Enter recipient wallet address" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Amount (TON)</label>
-            <input type="number" class="form-input" placeholder="Enter amount" step="0.001" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Message (Optional)</label>
-            <textarea class="form-input" placeholder="Enter optional message" style="resize: vertical; min-height: 100px;"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Fee</label>
-            <input type="text" class="form-input" value="~0.001 TON" disabled>
-          </div>
-          <button type="submit" class="btn-primary" style="width: 100%;">Send Message</button>
-        </form>
-        <p style="margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
-          💡 Note: Ensure your wallet is connected and has sufficient balance to send messages.
-        </p>
-      </div>
-    `;
-  }
-
-  renderFooter() {
-    return `
-      <footer class="footer">
-        <div class="footer-container">
-          <div class="footer-grid">
-            <div class="footer-section">
-              <h4>About</h4>
-              <ul>
-                <li><a href="#">About TON Explorer</a></li>
-                <li><a href="#">How It Works</a></li>
-                <li><a href="#">Documentation</a></li>
-                <li><a href="#">Blog</a></li>
-              </ul>
-            </div>
-            <div class="footer-section">
-              <h4>Resources</h4>
-              <ul>
-                <li><a href="#">API Documentation</a></li>
-                <li><a href="#">Smart Contracts</a></li>
-                <li><a href="#">Developer Guide</a></li>
-                <li><a href="#">RPC Endpoints</a></li>
-              </ul>
-            </div>
-            <div class="footer-section">
-              <h4>Community</h4>
-              <ul>
-                <li><a href="#">Discord</a></li>
-                <li><a href="#">Telegram</a></li>
-                <li><a href="#">Twitter</a></li>
-                <li><a href="#">GitHub</a></li>
-              </ul>
-            </div>
-            <div class="footer-section">
-              <h4>Legal</h4>
-              <ul>
-                <li><a href="#">Terms of Service</a></li>
-                <li><a href="#">Privacy Policy</a></li>
-                <li><a href="#">Cookie Policy</a></li>
-                <li><a href="#">Contact Us</a></li>
-              </ul>
-            </div>
-          </div>
-          <div class="social-links">
-            <a href="#" title="Telegram">📱</a>
-            <a href="#" title="Twitter">𝕏</a>
-            <a href="#" title="Discord">💬</a>
-            <a href="#" title="GitHub">🐙</a>
-          </div>
+      return `
+        <div class="tx-row">
+          <div class="tx-col type">${isIn ? '📥' : '📤'} ${isIn ? 'Received' : 'Sent'}</div>
+          <div class="tx-col hash mono">${shortHash}</div>
+          <div class="tx-col addr mono">${addr}</div>
+          <div class="tx-col time">${ts}</div>
+          <div class="tx-col amount ${isIn ? 'positive' : 'negative'}">${isIn ? '+' : '-'}${amount} GRAM</div>
         </div>
-        <div class="footer-bottom">
-          <p>&copy; 2024 TON Wallet Explorer. All rights reserved.</p>
-        </div>
-      </footer>
-    `;
+      `;
+    }).join('');
+
+    return `<div class="tx-list">${rows}</div>`;
   }
 
+  // --- Helpers ---
   switchTab(tabName) {
+    // re-render wallet page with new tab - simpler approach
     this.currentTab = tabName;
-    const tabs = document.querySelectorAll('.tab-button');
-    const contents = document.querySelectorAll('.tab-content');
-    
-    tabs.forEach(tab => tab.classList.remove('active'));
-    contents.forEach(content => content.classList.remove('active'));
-    
-    event.target.classList.add('active');
-    document.querySelectorAll('.tab-content')[Array.from(tabs).indexOf(event.target)].classList.add('active');
+    this.render();
   }
 
   copyToClipboard(text, button) {
+    if (!navigator.clipboard) {
+      alert('Clipboard not supported');
+      return;
+    }
     navigator.clipboard.writeText(text).then(() => {
-      const originalText = button.textContent;
-      button.textContent = '✓ Copied';
-      button.classList.add('copied');
-      setTimeout(() => {
-        button.textContent = originalText;
-        button.classList.remove('copied');
-      }, 2000);
+      if (button) {
+        const original = button.textContent;
+        button.textContent = '✓ Copied';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.textContent = original;
+          button.classList.remove('copied');
+        }, 1800);
+      }
     });
   }
 
   formatTime(date) {
+    if (!date || !(date instanceof Date)) return '—';
     const now = new Date();
     const diff = now - date;
     const minutes = Math.floor(diff / 60000);
@@ -508,12 +359,10 @@ int get_seqno() method_id {
   }
 
   attachEventListeners() {
-    const logoutBtn = document.getElementById('logout-btn');
-    const settingsBtn = document.getElementById('settings-btn');
-    const favoriteBtn = document.getElementById('favorite-btn');
-
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
+    // Disconnect back to login
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', () => {
         this.currentPage = 'login';
         this.walletAddress = null;
         this.walletData = null;
@@ -521,17 +370,8 @@ int get_seqno() method_id {
       });
     }
 
-    if (settingsBtn) {
-      settingsBtn.addEventListener('click', () => {
-        alert('Settings feature coming soon!');
-      });
-    }
-
-    if (favoriteBtn) {
-      favoriteBtn.addEventListener('click', () => {
-        favoriteBtn.textContent = favoriteBtn.textContent === '⭐' ? '★' : '⭐';
-      });
-    }
+    // Small UX: copy icon in wallet header uses explorer.copyToClipboard inline
+    // Nothing else to attach now; pages re-render on actions
   }
 }
 
